@@ -1,12 +1,16 @@
 import sys
-
+from tabulate import tabulate
+from App import logic as l
+import time
+from DataStructures.List import single_linked_list as sll
 
 def new_logic():
     """
         Se crea una instancia del controlador
     """
     #TODO: Llamar la función de la lógica donde se crean las estructuras de datos
-    pass
+    control = l.new_logic()
+    return control
 
 def print_menu():
     print("Bienvenido")
@@ -24,8 +28,68 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    pass
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo = l.load_data(control,"flights_test.csv")
+    print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
+def print_load_data(control):
+    inicio = l.get_time()
+    resultado1, resultado2 = l.cinco_primeros_ultimos(control)
+    final = l.get_time()
+    
+    tiempo = l.delta_time(inicio, final)
+    
+    print("Tiempo de carga: " + str(tiempo))
+    tabla1 = []
+    for i in range(sll.size(resultado1)):
+        vuelo = sll.get_element(resultado1, i)
+        fila = [
+            vuelo["date"],
+            vuelo["dep_time"],
+            vuelo["arr_time"],
+            vuelo["code_name"],
+            vuelo["id"],
+            vuelo["origin"],
+            vuelo["dest"],
+            vuelo["air_time"],
+            vuelo["distance"]
+        ]
+        
+        tabla1.append(fila)
+        
+    tabla2 = []
+    for i in range(sll.size(resultado2)):
+        vuelo = sll.get_element(resultado2, i)
+        fila = [
+            vuelo["date"],
+            vuelo["dep_time"],
+            vuelo["arr_time"],
+            vuelo["code_name"],
+            vuelo["id"],
+            vuelo["origin"],
+            vuelo["dest"],
+            vuelo["air_time"],
+            vuelo["distance"]
+        ]
+        
+        tabla2.append(fila)
+        
+    headers = [
+        "Fecha",
+        "hora salida", "hora llegada",
+        "aerolinea",
+        "id",
+        "origen",
+        "destino",
+        "duración [min]",
+        "distancia [mi]"
+    ]
+    
+    print("Primeros cinco vuelos: \n")
+    print(tabulate(tabla1, headers = headers, tablefmt = "grid"))
+    
+    print("Últimos cinco vuelos: \n")
+    print(tabulate(tabla2, headers = headers, tablefmt = "grid"))
+        
 
 def print_data(control, id):
     """
@@ -33,6 +97,7 @@ def print_data(control, id):
     """
     #TODO: Realizar la función para imprimir un elemento
     pass
+    
 
 def print_req_1(control):
     """
@@ -40,7 +105,6 @@ def print_req_1(control):
     """
     # TODO: Imprimir el resultado del requerimiento 1
     pass
-
 
 def print_req_2(control):
     """
@@ -96,7 +160,9 @@ def main():
         inputs = input('Seleccione una opción para continuar\n')
         if int(inputs) == 0:
             print("Cargando información de los archivos ....\n")
-            data = load_data(control)
+            load_data(control)
+            print_load_data(control)
+    
         elif int(inputs) == 1:
             print_req_1(control)
 
