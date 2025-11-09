@@ -7,6 +7,8 @@ from DataStructures.List import array_list as lt
 from DataStructures.List import single_linked_list as sll
 from DataStructures.Tree import red_black_tree as rbt
 from DataStructures.Tree import binary_search_tree as bst
+from DataStructures.Map import map_linear_probing as mp
+from DataStructures.Priority_queue import priority_queue as pq
 
 csv.field_size_limit(2147483647)
 data_dir = os.path.dirname(os.path.realpath("__file__")) + "/Data/"
@@ -23,6 +25,7 @@ def new_logic():
     catalog["vuelos"] = lt.new_list()
     catalog["vuelos_minutos_retraso"] = rbt.new_map() #req1
     catalog["vuelos_minutos_anticipo"] = rbt.new_map() #req2
+    catalog["index_req_5"] = None #req5
     
     return catalog
 
@@ -36,8 +39,9 @@ def load_data(catalog, filename):
     vuelos = load_vuelos(catalog, filename)
     vuelos_minutos_retraso = load_vuelos_retraso(catalog, filename)
     vuelos_minutos_anticipo = load_vuelos_anticipo(catalog, filename)
+    vuelos_index_req_5 = load_vuelos_req_5(catalog, filename)
     
-    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo
+    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5
 
 def load_vuelos(catalog, filename):
     vuelosfile = data_dir + "Challenge-3/" + filename
@@ -118,6 +122,56 @@ def load_vuelos_retraso(catalog, filename):
     return rbt.size(rbt_tree)
 def load_vuelos_anticipo(catalog, filename):
     pass
+
+def load_vuelos_req_5(catalog, filename):
+    vuelosfile = "data/Challenge-3/" + filename
+    input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
+    index_rbt = rbt.new_map()
+
+    for vuelo in input_file:
+        if vuelo["date"].strip() != "" and vuelo["arr_time"].strip() != "" and vuelo["sched_arr_time"].strip() != "" and vuelo["dest"].strip() != "":
+            puntualidad = calcular_puntualidad(vuelo["arr_time"], vuelo["sched_arr_time"])
+            vuelo_dict = new_vuelo(
+                vuelo["id"], vuelo["date"], vuelo["dep_time"], vuelo["sched_dep_time"],
+                vuelo["arr_time"], vuelo["sched_arr_time"], vuelo["carrier"],
+                vuelo["flight"], vuelo["tailnum"], vuelo["origin"], vuelo["dest"],
+                vuelo["air_time"], vuelo["distance"], vuelo["name"]
+            )
+
+            vuelo_dict["distancia"] = float(vuelo["distance"]) if vuelo["distance"] != "" else 0
+            vuelo_dict["duracion"] = float(vuelo["air_time"]) if vuelo["air_time"] != "" else 0
+            vuelo_dict["puntualidad"] = puntualidad
+
+            fecha = vuelo["date"]
+            aerolinea = vuelo["carrier"]
+
+            fecha_map = rbt.get(index_rbt, fecha)
+            if fecha_map is None:
+                fecha_map = mp.new_map(100, 0.75)
+
+            cola = mp.get(fecha_map, aerolinea)
+            if cola is None:
+                cola = pq.new_heap(is_min_pq=False)
+
+            pq.insert(cola, vuelo_dict["distancia"], vuelo_dict)
+            mp.put(fecha_map, aerolinea, cola)
+            rbt.put(index_rbt, fecha, fecha_map)
+
+    catalog["index_req_5"] = index_rbt
+    return rbt.size(index_rbt)
+
+def calcular_puntualidad(arr_time, sched_arr_time):
+    formato = "%H:%M"
+    real = datetime.strptime(arr_time, formato)
+    sched = datetime.strptime(sched_arr_time, formato)
+    minutos = (real - sched).total_seconds() / 60
+
+    if minutos < -720:
+        minutos += 1440
+    elif minutos > 720:
+        minutos -= 1440
+
+    return abs(minutos)
 
 def cinco_primeros_ultimos(catalog):
     
@@ -256,12 +310,106 @@ def req_4(catalog):
     pass
 
 
-def req_5(catalog):
-    """
-    Retorna el resultado del requerimiento 5
-    """
-    # TODO: Modificar el requerimiento 5
-    pass
+def req_5(catalog, destino, rango_fechas, n):
+    start = get_time()
+    index = catalog["index_req_5"]
+    fechas = rbt.keys(index, rango_fechas[0], rango_fechas[1])
+    aerolineas_map = agrupar_vuelos_por_aerolinea(index, destino, fechas)
+
+    resumen = lt.new_list()
+    aerolineas = mp.key_set(aerolineas_map)
+
+    for i in range(lt.size(aerolineas)):
+        aerolinea = lt.get_element(aerolineas, i)
+        vuelos = mp.get(aerolineas_map, aerolinea)
+        if vuelos is not None and lt.size(vuelos) > 0:
+            resumen_aerolinea = calcular_metricas_aerolinea(aerolinea, vuelos)
+            lt.add_last(resumen, resumen_aerolinea)
+
+    resumen_ordenado = ordenar_resumen_por_puntualidad(resumen)
+    top_n = lt.sub_list(resumen_ordenado, 0, min(n, lt.size(resumen_ordenado)))
+    end = get_time()
+
+    return {
+        "tiempo": delta_time(start, end),
+        "total_aerolineas": lt.size(top_n),
+        "aerolineas": top_n
+    }
+
+def agrupar_vuelos_por_aerolinea(index, destino, fechas):
+    aerolineas_map = mp.new_map(200, 0.75)
+
+    for i in range(lt.size(fechas)):
+        fecha = lt.get_element(fechas, i)
+        fecha_map = rbt.get(index, fecha)
+
+        if fecha_map is not None:
+            aerolineas = mp.key_set(fecha_map)
+
+            for j in range(lt.size(aerolineas)):
+                aerolinea = lt.get_element(aerolineas, j)
+                cola = mp.get(fecha_map, aerolinea)
+                vuelos = cola["elements"]["elements"]
+                tam_v = lt.size(cola["elements"])
+
+                for k in range(1, tam_v):
+                    entry = vuelos[k]
+                    vuelo = entry["value"]
+
+                    if vuelo["dest"] == destino:
+                        lista = mp.get(aerolineas_map, aerolinea)
+                        if lista is None:
+                            lista = lt.new_list()
+                        lt.add_last(lista, vuelo)
+                        mp.put(aerolineas_map, aerolinea, lista)
+
+    return aerolineas_map
+
+def calcular_metricas_aerolinea(aerolinea, vuelos):
+    total = lt.size(vuelos)
+    suma_puntualidad = 0
+    suma_duracion = 0
+    suma_distancia = 0
+    vuelo_max = None
+    max_dist = -1
+
+    for i in range(total):
+        vuelo = lt.get_element(vuelos, i)
+        suma_puntualidad += vuelo["puntualidad"]
+        suma_duracion += vuelo["duracion"]
+        suma_distancia += vuelo["distancia"]
+
+        if vuelo["distancia"] > max_dist:
+            max_dist = vuelo["distancia"]
+            vuelo_max = vuelo
+
+    resumen = {
+        "carrier": aerolinea,
+        "total_vuelos": total,
+        "prom_puntualidad": round(suma_puntualidad / total, 2),
+        "prom_duracion": round(suma_duracion / total, 2),
+        "prom_distancia": round(suma_distancia / total, 2),
+        "vuelo_max": {
+            "id": vuelo_max["id"],
+            "flight": vuelo_max["flight"],
+            "fecha_llegada": vuelo_max["date"] + " " + vuelo_max["arr_time"],
+            "origen": vuelo_max["origin"],
+            "destino": vuelo_max["dest"],
+            "duracion": vuelo_max["duracion"]
+        }
+    }
+
+    return resumen
+
+def criterio_orden_puntualidad(a, b):
+    if a["prom_puntualidad"] < b["prom_puntualidad"]:
+        return True
+    if a["prom_puntualidad"] > b["prom_puntualidad"]:
+        return False
+    return a["carrier"] < b["carrier"]
+
+def ordenar_resumen_por_puntualidad(resumen):
+    return lt.merge_sort(resumen, criterio_orden_puntualidad)
 
 def req_6(catalog):
     """

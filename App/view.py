@@ -29,7 +29,7 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo = l.load_data(control,"flights_test.csv")
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5 = l.load_data(control,"flights_test.csv")
     print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
 def print_load_data(control):
@@ -173,13 +173,70 @@ def print_req_4(control):
     pass
 
 
-def print_req_5(control):
-    """
-        Función que imprime la solución del Requerimiento 5 en consola
-    """
-    # TODO: Imprimir el resultado del requerimiento 5
-    pass
+from tabulate import tabulate
+from DataStructures.List import array_list as lt
+import App.logic as l
 
+def print_req_5(control):
+    print("\n Requerimiento 5: Aerolíneas más puntuales por destino y rango de fechas\n")
+
+    destino = input("Ingrese el código del aeropuerto de destino (ej: JFK): ").strip().upper()
+    fecha_inicio = input("Ingrese la fecha inicial (YYYY-MM-DD): ").strip()
+    fecha_final = input("Ingrese la fecha final (YYYY-MM-DD): ").strip()
+    n = int(input("Ingrese la cantidad N de aerolíneas más puntuales: "))
+
+    resultado = l.req_5(control, destino, [fecha_inicio, fecha_final], n)
+
+    print("\n Resultados generales del requerimiento 5:")
+    resumen = [
+        ["Tiempo de ejecución (ms)", resultado["tiempo"]],
+        ["Total de aerolíneas consideradas", resultado["total_aerolineas"]]
+    ]
+    print(tabulate(resumen, headers=["Descripción", "Valor"], tablefmt="grid"))
+
+    print("\n Aerolíneas más puntuales:")
+    tabla = formato_tabla_req5(resultado["aerolineas"])
+    headers = [
+        "Código",
+        "Total",
+        "Puntualidad",
+        "Duración",
+        "Distancia",
+        "ID Vuelo Largo",
+        "Código Vuelo",
+        "Fecha-Hora Llegada",
+        "Origen",
+        "Destino",
+        "Duración Vuelo"
+    ]
+    print(tabulate(tabla, headers=headers, tablefmt="grid"))
+
+def formato_tabla_req5(lista_aerolineas):
+    tabla = []
+    tam = lt.size(lista_aerolineas)
+    i = 0
+
+    while i < tam:
+        aerolinea = lt.get_element(lista_aerolineas, i)
+        vuelo = aerolinea["vuelo_max"]
+
+        fila = [
+            aerolinea["carrier"],
+            aerolinea["total_vuelos"],
+            aerolinea["prom_puntualidad"],
+            aerolinea["prom_duracion"],
+            aerolinea["prom_distancia"],
+            vuelo["id"],
+            vuelo["flight"],
+            vuelo["fecha_llegada"],
+            vuelo["origen"],
+            vuelo["destino"],
+            vuelo["duracion"]
+        ]
+        tabla.append(fila)
+        i = i + 1
+
+    return tabla
 
 def print_req_6(control):
     """
