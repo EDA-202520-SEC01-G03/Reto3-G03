@@ -26,6 +26,7 @@ def new_logic():
     catalog["vuelos_minutos_retraso"] = rbt.new_map() #req1
     catalog["vuelos_minutos_anticipo"] = rbt.new_map() #req2
     catalog["index_req_5"] = None #req5
+    catalog["index_req_6"] = None #req6
     
     return catalog
 
@@ -40,8 +41,9 @@ def load_data(catalog, filename):
     vuelos_minutos_retraso = load_vuelos_retraso(catalog, filename)
     vuelos_minutos_anticipo = load_vuelos_anticipo(catalog, filename)
     vuelos_index_req_5 = load_vuelos_req_5(catalog, filename)
+    vuelos_index_req_6 = load_vuelos_req_6(catalog, filename)
     
-    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5
+    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6
 
 def load_vuelos(catalog, filename):
     vuelosfile = data_dir + "Challenge-3/" + filename
@@ -172,6 +174,48 @@ def calcular_puntualidad(arr_time, sched_arr_time):
         minutos -= 1440
 
     return abs(minutos)
+
+def load_vuelos_req_6(catalog, filename):
+    vuelosfile = "data/Challenge-3/" + filename
+    input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
+    index_rbt = rbt.new_map()
+
+    for vuelo in input_file:
+        if vuelo["date"].strip() != "" and vuelo["dep_time"].strip() != "" and vuelo["sched_dep_time"].strip() != "" and vuelo["distance"].strip() != "" and vuelo["carrier"].strip() != "":
+            retraso = calcular_retraso_salida(vuelo["dep_time"], vuelo["sched_dep_time"])
+            vuelo_dict = new_vuelo(
+                vuelo["id"], vuelo["date"], vuelo["dep_time"], vuelo["sched_dep_time"],
+                vuelo["arr_time"], vuelo["sched_arr_time"], vuelo["carrier"],
+                vuelo["flight"], vuelo["tailnum"], vuelo["origin"], vuelo["dest"],
+                vuelo["air_time"], vuelo["distance"], vuelo["name"]
+            )
+
+            vuelo_dict["retraso_salida"] = retraso
+            vuelo_dict["distancia"] = float(vuelo["distance"])
+            fecha = vuelo["date"]
+
+            lista = rbt.get(index_rbt, fecha)
+            if lista is None:
+                lista = lt.new_list()
+            lt.add_last(lista, vuelo_dict)
+            rbt.put(index_rbt, fecha, lista)
+
+    catalog["index_req_6"] = index_rbt
+    return rbt.size(index_rbt)
+
+def calcular_retraso_salida(dep_time, sched_dep_time):
+    formato = "%H:%M"
+    real = datetime.strptime(dep_time, formato)
+    sched = datetime.strptime(sched_dep_time, formato)
+    minutos = (real - sched).total_seconds() / 60
+
+    if minutos < -720:
+        minutos += 1440
+    elif minutos > 720:
+        minutos -= 1440
+
+    return minutos
+
 
 def cinco_primeros_ultimos(catalog):
     
@@ -411,13 +455,110 @@ def criterio_orden_puntualidad(a, b):
 def ordenar_resumen_por_puntualidad(resumen):
     return lt.merge_sort(resumen, criterio_orden_puntualidad)
 
-def req_6(catalog):
-    """
-    Retorna el resultado del requerimiento 6
-    """
-    # TODO: Modificar el requerimiento 6
-    pass
 
+#Requerimiento 6
+def req_6(catalog, rango_fechas, rango_distancias, m):
+    start = get_time()
+    index = catalog["index_req_6"]
+    fechas = rbt.keys(index, rango_fechas[0], rango_fechas[1])
+    aerolineas_map = mp.new_map(200, 0.75)
+
+    for i in range(lt.size(fechas)):
+        fecha = lt.get_element(fechas, i)
+        lista = rbt.get(index, fecha)
+
+        for j in range(lt.size(lista)):
+            vuelo = lt.get_element(lista, j)
+            if rango_distancias[0] <= vuelo["distancia"] <= rango_distancias[1]:
+                aerolinea = vuelo["carrier"]
+                vuelos = mp.get(aerolineas_map, aerolinea)
+                if vuelos is None:
+                    vuelos = lt.new_list()
+                lt.add_last(vuelos, vuelo)
+                mp.put(aerolineas_map, aerolinea, vuelos)
+
+    resumen = lt.new_list()
+    aerolineas = mp.key_set(aerolineas_map)
+
+    for i in range(lt.size(aerolineas)):
+        aerolinea = lt.get_element(aerolineas, i)
+        vuelos = mp.get(aerolineas_map, aerolinea)
+        if vuelos is not None and lt.size(vuelos) > 0:
+            resumen_aerolinea = calcular_metricas_estabilidad(aerolinea, vuelos)
+            lt.add_last(resumen, resumen_aerolinea)
+
+    pq_estables = pq.new_heap(is_min_pq=True)
+
+    for i in range(lt.size(resumen)):
+        r = lt.get_element(resumen, i)
+        prioridad = (r["desviacion"], r["prom_retraso"])
+        pq.insert(pq_estables, prioridad, r)
+
+    top_m = lt.new_list()
+    for _ in range(min(m, pq.size(pq_estables))):
+        entry = pq.remove(pq_estables)
+        lt.add_last(top_m, entry)
+
+    end = get_time()
+    tiempo = delta_time(start, end)
+    return {
+        "tiempo": tiempo,
+        "total_aerolineas": lt.size(top_m),
+        "aerolineas": top_m
+    }
+    
+#Funciones auxiliares requerimiento 6    
+def calcular_metricas_estabilidad(aerolinea, vuelos):
+    total = lt.size(vuelos)
+    suma = 0
+    retrasos = []
+
+    for i in range(total):
+        vuelo = lt.get_element(vuelos, i)
+        r = vuelo["retraso_salida"]
+        suma += r
+        retrasos.append(r)
+
+    promedio = suma / total
+
+    suma_cuadrados = 0
+    for r in retrasos:
+        diferencia = r - promedio
+        suma_cuadrados += diferencia ** 2
+
+    varianza = suma_cuadrados / total
+    desviacion = round(varianza ** 0.5, 2)
+
+    vuelo_cercano = buscar_vuelo_cercano(vuelos, promedio)
+
+    resumen = {
+        "carrier": aerolinea,
+        "total_vuelos": total,
+        "prom_retraso": round(promedio, 2),
+        "desviacion": desviacion,
+        "vuelo_cercano": {
+            "id": vuelo_cercano["id"],
+            "flight": vuelo_cercano["flight"],
+            "fecha_salida": vuelo_cercano["date"] + " " + vuelo_cercano["dep_time"],
+            "origen": vuelo_cercano["origin"],
+            "destino": vuelo_cercano["dest"]
+        }
+    }
+
+    return resumen
+
+def buscar_vuelo_cercano(vuelos, promedio):
+    min_dif = float("inf")
+    vuelo_cercano = None
+
+    for i in range(lt.size(vuelos)):
+        vuelo = lt.get_element(vuelos, i)
+        dif = abs(vuelo["retraso_salida"] - promedio)
+        if dif < min_dif:
+            min_dif = dif
+            vuelo_cercano = vuelo
+
+    return vuelo_cercano
 
 # Funciones para medir tiempos de ejecucion
 

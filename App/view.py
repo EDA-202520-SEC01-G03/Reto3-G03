@@ -29,7 +29,7 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5 = l.load_data(control,"flights_test.csv")
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_test.csv")
     print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
 def print_load_data(control):
@@ -239,12 +239,61 @@ def formato_tabla_req5(lista_aerolineas):
     return tabla
 
 def print_req_6(control):
-    """
-        Función que imprime la solución del Requerimiento 6 en consola
-    """
-    # TODO: Imprimir el resultado del requerimiento 6
-    pass
+    print("\n Requerimiento 6: Aerolíneas más estables en su hora de salida\n")
 
+    fecha_inicio = input("Ingrese la fecha inicial (YYYY-MM-DD): ").strip()
+    fecha_final = input("Ingrese la fecha final (YYYY-MM-DD): ").strip()
+    min_dist = float(input("Ingrese la distancia mínima (en millas): "))
+    max_dist = float(input("Ingrese la distancia máxima (en millas): "))
+    m = int(input("Ingrese la cantidad M de aerolíneas más estables: "))
+
+    resultado = l.req_6(control, [fecha_inicio, fecha_final], [min_dist, max_dist], m)
+
+    print("\n Resultados generales del requerimiento 6:")
+    resumen = [
+        ["Tiempo de ejecución (ms)", resultado["tiempo"]],
+        ["Total de aerolíneas analizadas", resultado["total_aerolineas"]]
+    ]
+    print(tabulate(resumen, headers=["Descripción", "Valor"], tablefmt="grid"))
+
+    print("\n Aerolíneas más estables:")
+    tabla = formato_tabla_req6(resultado["aerolineas"])
+    headers = [
+        "Código",
+        "Total",
+        "Prom. Retraso",
+        "Desviación Std",
+        "ID Vuelo",
+        "Cod Vuelo",
+        "Fecha-Hora Salida",
+        "Origen",
+        "Destino"
+    ]
+    print(tabulate(tabla, headers=headers, tablefmt="grid"))
+def formato_tabla_req6(lista_aerolineas):
+    tabla = []
+    tam = lt.size(lista_aerolineas)
+    i = 0
+
+    while i < tam:
+        aerolinea = lt.get_element(lista_aerolineas, i)
+        vuelo = aerolinea["vuelo_cercano"]
+
+        fila = [
+            aerolinea["carrier"],
+            aerolinea["total_vuelos"],
+            aerolinea["prom_retraso"],
+            aerolinea["desviacion"],
+            vuelo["id"],
+            vuelo["flight"],
+            vuelo["fecha_salida"],
+            vuelo["origen"],
+            vuelo["destino"]
+        ]
+        tabla.append(fila)
+        i += 1
+
+    return tabla
 # Se crea la lógica asociado a la vista
 control = new_logic()
 
@@ -278,7 +327,7 @@ def main():
         elif int(inputs) == 5:
             print_req_5(control)
 
-        elif int(inputs) == 5:
+        elif int(inputs) == 6:
             print_req_6(control)
 
         elif int(inputs) == 7:
