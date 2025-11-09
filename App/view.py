@@ -3,6 +3,7 @@ from tabulate import tabulate
 from App import logic as l
 import time
 from DataStructures.List import single_linked_list as sll
+from DataStructures.List import array_list as lt
 
 def new_logic():
     """
@@ -104,7 +105,49 @@ def print_req_1(control):
         Función que imprime la solución del Requerimiento 1 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 1
-    pass
+    codigo= input("Ingrese el código de la aerolínea (ej: UA): ").strip().upper()
+    min_retraso= int(input("Ingrese el mínimo de minutos de retraso: "))
+    max_retraso= int(input("Ingrese el máximo de minutos de retraso: "))
+    rango= [min_retraso, max_retraso]
+    
+    resultado= l.req_1(control, codigo, rango)
+    
+    print("\n Resultados generales Requerimiento 1:")
+    resumen= [
+        ["Tiempo de ejecución (ms)", resultado["tiempo"]],
+        ["Total de vuelos encontrados", resultado["total"]]
+        
+    ]
+    print(tabulate(resumen, headers=["Descripción", "Valor"], tablefmt="grid"))
+    
+    print("\n Primeros 5 vuelos:")
+    tabla_primeros= formato_tabla_req1(resultado["primeros"])
+    print(tabulate(tabla_primeros, headers=["ID", "Código", "Fecha", "Aerolínea", "Carrier", "Origen", "Destino", "Retraso"],
+                     tablefmt="grid"))
+    
+    print("\n Últimos 5 vuelos:")
+    tabla_ultimos= formato_tabla_req1(resultado["ultimos"])
+    print(tabulate(tabla_ultimos, headers=["ID", "Código", "Fecha", "Aerolínea", "Carrier", "Origen", "Destino", "Retraso"],
+                    tablefmt="grid"))
+    
+#Funcion auxiliar print req 1
+def formato_tabla_req1(lista_vuelos):
+    tabla=[]
+    tam= lt.size(lista_vuelos)
+    for i in range(tam):
+        vuelo= lt.get_element(lista_vuelos, i)
+        fila=[
+            vuelo["id"],
+            vuelo["flight"],
+            vuelo["date"],
+            vuelo["name"],
+            vuelo["carrier"],
+            vuelo["origin"],
+            vuelo["dest"],
+            vuelo["retraso"]
+        ]
+        tabla.append(fila)
+    return tabla
 
 def print_req_2(control):
     """

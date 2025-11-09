@@ -6,6 +6,7 @@ from datetime import datetime
 from DataStructures.List import array_list as lt
 from DataStructures.List import single_linked_list as sll
 from DataStructures.Tree import red_black_tree as rbt
+from DataStructures.Tree import binary_search_tree as bst
 
 csv.field_size_limit(2147483647)
 data_dir = os.path.dirname(os.path.realpath("__file__")) + "/Data/"
@@ -44,7 +45,7 @@ def load_vuelos(catalog, filename):
     for vuelo in input_file:
         add_vuelo(catalog, vuelo)
     
-    catalog["vuelos"] = lt.quick_sort(catalog["vuelos"], sort_crit_fecha)
+    catalog["vuelos"] = lt.merge_sort(catalog["vuelos"], sort_crit_fecha)
     return size_load_vuelos(catalog)
 
 def sort_crit_fecha(vuelo1, vuelo2):
@@ -90,8 +91,31 @@ def size_load_vuelos(catalog):
     return lt.size(catalog["vuelos"])
 
 def load_vuelos_retraso(catalog, filename):
-    pass
+    vuelosfile = "data/Challenge-3/" + filename
+    input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
 
+    rbt_tree = catalog["vuelos_minutos_retraso"]
+
+    for vuelo in input_file:
+        retraso = calcular_retraso(vuelo["dep_time"], vuelo["sched_dep_time"])
+
+        if retraso > 0:
+            vuelo_dict = new_vuelo(
+                vuelo["id"], vuelo["date"], vuelo["dep_time"], vuelo["sched_dep_time"],
+                vuelo["arr_time"], vuelo["sched_arr_time"], vuelo["carrier"],
+                vuelo["flight"], vuelo["tailnum"], vuelo["origin"], vuelo["dest"],
+                vuelo["air_time"], vuelo["distance"], vuelo["name"]
+            )
+
+            lista = rbt.get(rbt_tree, retraso)
+
+            if lista is None:
+                lista = lt.new_list()
+
+            lt.add_last(lista, vuelo_dict)
+            rbt.put(rbt_tree, retraso, lista)
+
+    return rbt.size(rbt_tree)
 def load_vuelos_anticipo(catalog, filename):
     pass
 
@@ -134,12 +158,78 @@ def dic_vuelo(vuelo):
 # Funciones de consulta sobre el catálogo
 
 
-def req_1(catalog):
-    """
-    Retorna el resultado del requerimiento 1
-    """
-    # TODO: Modificar el requerimiento 1
-    pass
+def req_1(catalog, codigo_aerolinea, rango):
+    start = get_time()
+    vuelos_rbt = catalog["vuelos_minutos_retraso"]
+    vuelos_filtrados = lt.new_list()
+
+    retrasos = rbt.keys(vuelos_rbt, rango[0], rango[1])
+    for i in range(lt.size(retrasos)):
+        retraso = lt.get_element(retrasos, i)
+        lista_vuelos = rbt.get(vuelos_rbt, retraso)
+
+        for j in range(lt.size(lista_vuelos)):
+            vuelo = lt.get_element(lista_vuelos, j)
+            if vuelo.get("carrier") == codigo_aerolinea:
+                vuelo_filtrado = {
+                    "id": vuelo["id"],
+                    "flight": vuelo["flight"],
+                    "date": vuelo["date"],
+                    "name": vuelo["name"],
+                    "carrier": vuelo["carrier"],
+                    "origin": vuelo["origin"],
+                    "dest": vuelo["dest"],
+                    "retraso": retraso,
+                    "dep_time": vuelo["dep_time"]
+                }
+                lt.add_last(vuelos_filtrados, vuelo_filtrado)
+
+    vuelos_ordenados = ordenar_vuelos_fecha_retraso(vuelos_filtrados)
+    total = lt.size(vuelos_ordenados)
+    end = get_time()
+    tiempo = delta_time(start, end)
+
+    primeros = lt.sub_list(vuelos_ordenados, 0, min(5, total))
+    ultimos_inicio = max(0, total - 5)
+    ultimos = lt.sub_list(vuelos_ordenados, ultimos_inicio, total - ultimos_inicio)
+
+    return {
+        "tiempo": tiempo,
+        "total": total,
+        "primeros": primeros,
+        "ultimos": ultimos
+    }
+
+#Funciones auxiliares requerimiento 1
+def calcular_retraso(dep_time, sched_dep_time):
+    formato = "%H:%M"
+    real = datetime.strptime(dep_time, formato)
+    sched = datetime.strptime(sched_dep_time, formato)
+
+    minutos_retraso = (real - sched).total_seconds() / 60
+    if minutos_retraso < -720:
+        minutos_retraso += 1440
+    elif minutos_retraso > 720:
+        minutos_retraso -= 1440
+
+    return int(minutos_retraso)
+
+def sort_crit_fecha_real(v1, v2):
+    formato = "%Y-%m-%d %H:%M"
+    f1 = datetime.strptime(v1["date"] + " " + v1["dep_time"], formato)
+    f2 = datetime.strptime(v2["date"] + " " + v2["dep_time"], formato)
+    return f1 < f2
+
+def sort_crit_retraso_fecha(v1, v2):
+    if v1["retraso"] < v2["retraso"]:
+        return True
+    elif v1["retraso"] > v2["retraso"]:
+        return False
+    else:
+        return sort_crit_fecha_real(v1, v2)
+
+def ordenar_vuelos_fecha_retraso(lista_vuelos):
+    return lt.merge_sort(lista_vuelos, sort_crit_retraso_fecha)
 
 
 def req_2(catalog):

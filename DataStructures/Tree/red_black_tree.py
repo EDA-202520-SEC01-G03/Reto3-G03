@@ -1,5 +1,5 @@
 from DataStructures.Tree.rbt_node import RED, BLACK, new_node, change_color, is_red
-from DataStructures.List import single_linked_list as  sll
+from DataStructures.List import array_list as lt
 # new map
 def new_map():
     return {"root": None,
@@ -43,16 +43,15 @@ def is_empty(rbt):
     
 #value_set
 def value_set(rbt):
-    lista = sll.new_list()
+    lista = lt.new_list()
     return value_set_tree(rbt["root"], lista)
 
 def value_set_tree(root, lista):
     if root is None:
-        return lista 
-    else:
-        sll.add_last(lista, root["value"])
-        value_set_tree(root["left"], lista)
-        value_set_tree(root["right"], lista)
+        return lista
+    lt.add_last(lista, root["value"])
+    value_set_tree(root["left"], lista)
+    value_set_tree(root["right"], lista)
     return lista
 
 #get_min
@@ -72,33 +71,22 @@ def get_min_node(root):
 
 #keys
 def keys(rbt, key_initial, key_final):
-    
-    lista = sll.new_list()
-    
-    if rbt["root"] is None:
-        return lista
-    
-    else:
-        return keys_range(rbt["root"], key_initial, key_final, lista)
+    lista = lt.new_list()
+    return keys_range(rbt["root"], key_initial, key_final, lista)
     
 def keys_range(root, key_initial, key_final, lista):
-
     if root is None:
-        
         return lista
-    
-    elif root["key"] < key_initial:
-        
-        return keys_range(root["right"], key_initial, key_final, lista)
-    
-    elif key_initial <= root["key"] <= key_final:
-        
-        sll.add_last(lista, root["key"])
-    
-    elif root["key"] > key_initial:
-        
-        return keys_range(root["left"], key_initial, key_final, lista)
-    
+
+    if key_initial < root["key"]:
+        keys_range(root["left"], key_initial, key_final, lista)
+
+    if key_initial <= root["key"] <= key_final:
+        lt.add_last(lista, root["key"])
+
+    if key_final > root["key"]:
+        keys_range(root["right"], key_initial, key_final, lista)
+
     return lista
 
 # rotate left
@@ -171,15 +159,15 @@ def size_tree(root):
     return root["size"]
 
 #key set
-def key_set(my_rbt):
-    key_list = sll.new_list()
-    return key_set_tree(my_rbt.get("root"), key_list)
+def key_set(rbt):
+    lista = lt.new_list()
+    return key_set_tree(rbt["root"], lista)
 
 # key set node
-def key_set_tree( root, key_list):
+def key_set_tree(root, key_list):
     if root is not None:
         key_set_tree(root["left"], key_list)
-        sll.add_last(key_list, root["key"])
+        lt.add_last(key_list, root["key"])
         key_set_tree(root["right"], key_list)
     return key_list
 
@@ -211,9 +199,9 @@ def height_tree(root):
     return 1 + max(left_height, right_height)
 
 # values
-def values(my_rbt, key_initial, key_final):
-    value_list= sll.new_list()
-    return values_range(my_rbt.get("root"), key_initial, key_final, value_list)
+def values(rbt, key_initial, key_final):
+    lista = lt.new_list()
+    return values_range(rbt["root"], key_initial, key_final, lista)
 
 # values range
 def values_range(root, key_lo, key_hi, list_values):
@@ -223,8 +211,8 @@ def values_range(root, key_lo, key_hi, list_values):
     if key_lo < root["key"]:
         values_range(root["left"], key_lo, key_hi, list_values)
 
-    if key_lo <= root["key"] and root["key"] <= key_hi:
-        sll.add_last(list_values, root["value"])
+    if key_lo <= root["key"] <= key_hi:
+        lt.add_last(list_values, root["value"])
 
     if key_hi > root["key"]:
         values_range(root["right"], key_lo, key_hi, list_values)
