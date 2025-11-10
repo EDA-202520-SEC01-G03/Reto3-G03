@@ -122,8 +122,84 @@ def load_vuelos_retraso(catalog, filename):
             rbt.put(rbt_tree, retraso, lista)
 
     return rbt.size(rbt_tree)
+
+#vuelos_anticipo
 def load_vuelos_anticipo(catalog, filename):
-    pass
+    vuelosfile = data_dir + "Challenge-3/" + filename
+    inputfile = csv.DictReader(open(vuelosfile, encoding="utf-8"))
+    red_black = rbt.new_map()
+    catalog["vuelos_minutos_anticipo"] = red_black
+    for vuelo in inputfile:
+        add_vuelo_anticipo(catalog, vuelo)
+    
+    return rbt.size(catalog["vuelos_minutos_anticipo"])
+
+def add_vuelo_anticipo(catalog, vuelo):
+    
+    red_black = catalog["vuelos_minutos_anticipo"]
+    
+    minutos = calcular_minutos(vuelo["sched_arrive_time"], vuelo["arr_time"])
+    
+    if minutos is not None:
+        
+        if minutos > 0:
+            
+            llave = rbt.get(red_black, minutos) #map_linear_probing
+            fecha = datetime.strptime(str(vuelo["date"]) + " " + str(vuelo["arr_time"]), "%Y-%m-%d %H:%M") 
+            vuelo_dic = dic_anticipo(vuelo, minutos)
+            
+            if llave is None: #si no existe en el árbol
+                
+                mapa = mp.new_map(50, 0.5) #se crea la tabla
+                cola = pq.new_heap() #se crea una cola
+                
+                pq.insert(cola, fecha, vuelo_dic) #se adiciona al heap
+                
+                mapa = mp.put(mapa, str(vuelo["dest"]), cola) #se pone en el mapa el heap (codigo llave)
+                rbt.put(red_black, minutos, mapa) #se pone el mapa y los minutos en el arbol
+
+                
+            else: #si existe en el árbol
+                
+                info = mp.contains(llave, str(vuelo["dest"])) #si ya existe la tabla, se busca el codigo del aeropuerto destino
+                
+                if info: #si existe, se añade a el heap de el vuelo
+                    value = mp.get(llave, str(vuelo["dest"]))
+                    pq.insert(value, fecha, vuelo_dic)
+                    
+                else: #si no existe, se mete al mapa el nuevo codigo del aeropuerto destino
+                    
+                    cola = pq.new_heap() #se crea una cola
+                    pq.insert(cola, fecha, vuelo_dic) #se adiciona al heap
+                    mapa = mp.put(llave, str(vuelo["dest"]), cola) #se pone en el mapa la cola (codigo llave)
+                
+    return catalog
+
+#funciones auxiliares
+def calcular_minutos(sarr_time, arr_time):
+    
+    if sarr_time != "" and arr_time != "":
+        
+        sarr_time = datetime.strptime(str(sarr_time), "%H:%M").minute()
+        arr_time = datetime.strptime(str(arr_time), "%H:%M").minute()
+    
+        minutos = (sarr_time - arr_time)
+
+        if minutos < -720:
+            minutos += 1440
+        elif minutos > 720:
+            minutos -= 1440
+
+        return int(minutos)
+    
+def dic_anticipo(vuelo, minutos):
+    
+    vuel = {"id": vuelo["id"], "flight": vuelo["flight"], "date": vuelo["date"],
+            "name": vuelo["name"],"carrier": vuelo["carrier"], "origin": vuelo["origin"], 
+            "dest": vuelo["dest"], "min_anticipo": minutos}
+    
+    return vuel
+
 
 def load_vuelos_req_5(catalog, filename):
     vuelosfile = "data/Challenge-3/" + filename
