@@ -138,12 +138,13 @@ def add_vuelo_anticipo(catalog, vuelo):
     
     red_black = catalog["vuelos_minutos_anticipo"]
     
-    minutos = calcular_minutos(vuelo["sched_arrive_time"], vuelo["arr_time"])
+    minutos = calcular_minutos(vuelo["sched_arr_time"], vuelo["arr_time"])
     
     if minutos is not None:
         
-        if minutos > 0:
+        if minutos < 0:
             
+            minutos = abs(minutos)
             llave = rbt.get(red_black, minutos) #map_linear_probing
             fecha = datetime.strptime(str(vuelo["date"]) + " " + str(vuelo["arr_time"]), "%Y-%m-%d %H:%M") 
             vuelo_dic = dic_anticipo(vuelo, minutos)
@@ -178,12 +179,12 @@ def add_vuelo_anticipo(catalog, vuelo):
 #funciones auxiliares
 def calcular_minutos(sarr_time, arr_time):
     
-    if sarr_time != "" and arr_time != "":
+    if (sarr_time != "" and arr_time != "") or (sarr_time is None and arr_time is None):
         
-        sarr_time = datetime.strptime(str(sarr_time), "%H:%M").minute()
-        arr_time = datetime.strptime(str(arr_time), "%H:%M").minute()
+        sarr_time = datetime.strptime(str(sarr_time), "%H:%M")
+        arr_time = datetime.strptime(str(arr_time), "%H:%M")
     
-        minutos = (sarr_time - arr_time)
+        minutos = (sarr_time - arr_time).total_seconds() / 60
 
         if minutos < -720:
             minutos += 1440
@@ -191,6 +192,9 @@ def calcular_minutos(sarr_time, arr_time):
             minutos -= 1440
 
         return int(minutos)
+    
+    else:
+        return None
     
 def dic_anticipo(vuelo, minutos):
     
