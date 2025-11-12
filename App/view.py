@@ -29,7 +29,7 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_test.csv")
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_medium.csv")
     print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
 def print_load_data(control):
@@ -149,21 +149,65 @@ def formato_tabla_req1(lista_vuelos):
         tabla.append(fila)
     return tabla
 
-def print_req_2(control):
+def print_req_2(control, codigo_aero, rango):
     """
         Función que imprime la solución del Requerimiento 2 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 2
-    pass
+    tiempo, longitud, resultado = l.req_2(control, codigo_aero, rango)
 
-
-def print_req_3(control):
-    """
-        Función que imprime la solución del Requerimiento 3 en consola
-    """
-    # TODO: Imprimir el resultado del requerimiento 3
-    pass
-
+    if resultado is not None:
+        
+        headers = ["ID", "Código del vuelo", "Fecha", "Aerolínea", "Código de la aero", "origen", "dest", "minutos anticipo"]
+        if longitud > 10:
+            
+            print("Tiempo de carga: " + str(tiempo))
+            print("Número total de vuelos que cumplen con el filtro del aeropuerto y del rango de anticipo: " + str(longitud))
+            
+            
+            tabla1 = []
+            tabla2 = []
+            
+            for x in range(0, 5):
+                
+                
+                vuelo = lt.get_element(resultado, x)
+                fila = [ vuelo["id"], vuelo["flight"], vuelo["date"], vuelo["name"], vuelo["carrier"], vuelo["origin"], vuelo["dest"], 
+                        vuelo["min_anticipo"]]
+                
+                tabla1.append(fila)
+                
+            for y in range(longitud - 5 , longitud):
+                
+                vuelo = lt.get_element(resultado, y)
+                fila = [ vuelo["id"], vuelo["flight"], vuelo["date"], vuelo["name"], vuelo["carrier"], vuelo["origin"], vuelo["dest"], 
+                        vuelo["min_anticipo"]]
+                
+                tabla2.append(fila)
+                
+            print("Primeros cinco vuelos: \n")
+            print(tabulate(tabla1, headers = headers, tablefmt = "grid"))
+    
+            print("Últimos cinco vuelos: \n")
+            print(tabulate(tabla2, headers = headers, tablefmt = "grid"))
+        
+        else:
+            tabla = []
+            
+            
+            for x in range(longitud):
+                
+                vuelo = lt.get_element(resultado, x)
+                
+                fila = [ vuelo["id"], vuelo["flight"], vuelo["date"], vuelo["name"], vuelo["carrier"], vuelo["origin"], vuelo["dest"], 
+                        vuelo["min_anticipo"]]
+                
+                tabla.append(fila)
+            print("Los vuelos son: \n")
+            print(tabulate(tabla, headers = headers, tablefmt = "grid"))
+                
+    else:
+        print("No se encontraron vuelos dentro del rango o código aerolinea especificado.")
 
 def print_req_4(control):
     """
@@ -316,10 +360,14 @@ def main():
             print_req_1(control)
 
         elif int(inputs) == 2:
-            print_req_2(control)
-
-        elif int(inputs) == 3:
-            print_req_3(control)
+            codigo_aero = input("ingrese el código del aeropuerto de destino a analizar\n")
+            print("Ahora, ingrese el rango de minutos:\n")
+            
+            ran = int(input("Desde:\n"))
+            go = int(input("Hasta:\n"))
+            
+            rango = ran,go
+            print_req_2(control, codigo_aero, rango)
 
         elif int(inputs) == 4:
             print_req_4(control)

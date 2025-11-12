@@ -144,19 +144,18 @@ def add_vuelo_anticipo(catalog, vuelo):
         
         if minutos < 0:
             
-            minutos = abs(minutos)
+            minutos = int(abs(minutos)) #minutos es int
             llave = rbt.get(red_black, minutos) #map_linear_probing
-            fecha = datetime.strptime(str(vuelo["date"]) + " " + str(vuelo["arr_time"]), "%Y-%m-%d %H:%M") 
             vuelo_dic = dic_anticipo(vuelo, minutos)
             
             if llave is None: #si no existe en el árbol
                 
-                mapa = mp.new_map(50, 0.5) #se crea la tabla
-                cola = pq.new_heap() #se crea una cola
+                mapa = mp.new_map(5, 0.5) #se crea la tabla
+                lista = lt.new_list() #se crea una lista
                 
-                pq.insert(cola, fecha, vuelo_dic) #se adiciona al heap
+                lt.add_last(lista, vuelo_dic)
+                mapa = mp.put(mapa, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
                 
-                mapa = mp.put(mapa, str(vuelo["dest"]), cola) #se pone en el mapa el heap (codigo llave)
                 rbt.put(red_black, minutos, mapa) #se pone el mapa y los minutos en el arbol
 
                 
@@ -164,27 +163,29 @@ def add_vuelo_anticipo(catalog, vuelo):
                 
                 info = mp.contains(llave, str(vuelo["dest"])) #si ya existe la tabla, se busca el codigo del aeropuerto destino
                 
-                if info: #si existe, se añade a el heap de el vuelo
+                if info: #si existe, se añade a la  lista de el vuelo
+                    
+                    
                     value = mp.get(llave, str(vuelo["dest"]))
-                    pq.insert(value, fecha, vuelo_dic)
+                    lt.add_last(value, vuelo_dic)
                     
                 else: #si no existe, se mete al mapa el nuevo codigo del aeropuerto destino
                     
-                    cola = pq.new_heap() #se crea una cola
-                    pq.insert(cola, fecha, vuelo_dic) #se adiciona al heap
-                    mapa = mp.put(llave, str(vuelo["dest"]), cola) #se pone en el mapa la cola (codigo llave)
+                    lista = lt.new_list() #se crea una lista
+                    lt.add_last(lista, vuelo_dic)
+                    mapa = mp.put(llave, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
                 
     return catalog
 
 #funciones auxiliares
 def calcular_minutos(sarr_time, arr_time):
     
-    if (sarr_time != "" and arr_time != "") or (sarr_time is None and arr_time is None):
+    if (sarr_time != "" or arr_time != "") or (sarr_time is not None or arr_time is not None):
         
         sarr_time = datetime.strptime(str(sarr_time), "%H:%M")
         arr_time = datetime.strptime(str(arr_time), "%H:%M")
-    
-        minutos = (sarr_time - arr_time).total_seconds() / 60
+
+        minutos = (arr_time - sarr_time).total_seconds() / 60
 
         if minutos < -720:
             minutos += 1440
@@ -200,7 +201,7 @@ def dic_anticipo(vuelo, minutos):
     
     vuel = {"id": vuelo["id"], "flight": vuelo["flight"], "date": vuelo["date"],
             "name": vuelo["name"],"carrier": vuelo["carrier"], "origin": vuelo["origin"], 
-            "dest": vuelo["dest"], "min_anticipo": minutos}
+            "dest": vuelo["dest"], "min_anticipo": minutos, "arr_time": vuelo["arr_time"]}
     
     return vuel
 
@@ -295,7 +296,6 @@ def calcular_retraso_salida(dep_time, sched_dep_time):
         minutos -= 1440
 
     return minutos
-
 
 def cinco_primeros_ultimos(catalog):
     
@@ -410,22 +410,67 @@ def ordenar_vuelos_fecha_retraso(lista_vuelos):
     return lt.merge_sort(lista_vuelos, sort_crit_retraso_fecha)
 
 
-def req_2(catalog):
+def req_2(catalog, codigo_aero, rango): #rango es una tupla
     """
     Retorna el resultado del requerimiento 2
     """
     # TODO: Modificar el requerimiento 2
-    pass
+    inicio = get_time()
+    red_black = catalog["vuelos_minutos_anticipo"]
+    
+    #organizar de forma ascendente el anticipo
+    array_vuelos = rbt.values(red_black, int(rango[0]), int(rango[1])) #llaves = array
+    resultado = lt.new_list()
+    
+    if array_vuelos is not None and (lt.size(array_vuelos) > 0):
+        for x in range(lt.size(array_vuelos)):#o(m) número de elementos en array_vuelos
+            
+            mapa = lt.get_element(array_vuelos, x)
+            
+            if mapa is not None:
+                
+                lista = mp.get(mapa, str(codigo_aero))
+            
+                if lista is not None:
+                    
+                    for y in range(lt.size(lista)):
+                        
+                        element = lt.get_element(lista, y)
+                        lt.add_last(resultado, element)
+                
 
+        resultado = lt.quick_sort(resultado, sort_crit_anticipo)
+        longitud = lt.size(resultado)
+        final = get_time()
+        tiempo = delta_time(inicio, final)
+        
+        return tiempo, longitud, resultado
+    
+    else:
+        final = get_time()
+        tiempo = delta_time(inicio, final)
+        return tiempo, 0, None
 
-def req_3(catalog):
-    """
-    Retorna el resultado del requerimiento 3
-    """
-    # TODO: Modificar el requerimiento 3
-    pass
+#función auxiliar 
+def sort_crit_anticipo(vuelo1, vuelo2):
+    
+    is_sorted = False
+    if int(vuelo1["min_anticipo"]) < int(vuelo2["min_anticipo"]):
+        
+        is_sorted = True
+        
+    elif int(vuelo1["min_anticipo"]) == int(vuelo2["min_anticipo"]):
+        
+        fecha1 = datetime.strptime(str(vuelo1["date"]) + " " + str(vuelo1["arr_time"]), "%Y-%m-%d %H:%M") 
+        fecha2 = datetime.strptime(str(vuelo2["date"]) + " " + str(vuelo2["arr_time"]), "%Y-%m-%d %H:%M") 
 
-
+        if fecha1 < fecha2:
+            
+            is_sorted = True
+           
+    return is_sorted
+        
+    
 def req_4(catalog):
     """
     Retorna el resultado del requerimiento 4
