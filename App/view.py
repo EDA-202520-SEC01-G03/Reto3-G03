@@ -29,7 +29,7 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_medium.csv")
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_small.csv")
     print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
 def print_load_data(control):
