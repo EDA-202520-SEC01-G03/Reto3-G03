@@ -1,7 +1,7 @@
 import sys
 from tabulate import tabulate
 from App import logic as l
-import time
+from datetime import datetime
 from DataStructures.List import single_linked_list as sll
 from DataStructures.List import array_list as lt
 
@@ -29,7 +29,7 @@ def load_data(control):
     Carga los datos
     """
     #TODO: Realizar la carga de datos
-    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_small.csv")
+    vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_req_4, vuelos_index_req_5, vuelos_index_req_6 = l.load_data(control,"flights_large.csv")
     print("Número de vuelos cargados: " + str(vuelos) + "\n")
 
 def print_load_data(control):
@@ -209,18 +209,44 @@ def print_req_2(control, codigo_aero, rango):
     else:
         print("No se encontraron vuelos dentro del rango o código aerolinea especificado.")
 
-def print_req_4(control):
+def print_req_4(control, rango, franja, N):
     """
         Función que imprime la solución del Requerimiento 4 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 4
-    pass
+    tiempo, aerolineas = l.req_4(control, rango, franja)
 
+    print("Tiempo de ejecución (ms): " + str(tiempo))
+    print("Total de aerolíneas consideradas: " + str(N))
+    
+    longitud = lt.size(aerolineas)
+    if longitud > 0:
+        headers = ["Codigo aero", "Total vuelos", "Duración Promedio", "Distancia Promedio"]
+        headers2 = ["ID", "Código", "Fecha-Hora programada de salida", "Origen", "Destino", "Duración"]
+        
+        tabla1 = []
+        tabla2 = []
+        for x in range(0, N):
+            
+            aerolinea = lt.get_element(aerolineas, x)
+            vuelo = aerolinea["menor_duracion"]["info"]
+            
+            fila1 = [aerolinea["carrier"], aerolinea["numero_vuelos"], round(float(aerolinea["duración"] / aerolinea["numero_vuelos"]),2),
+                    round(float(aerolinea["distancia"] / aerolinea["numero_vuelos"]),2) ]
 
-from tabulate import tabulate
-from DataStructures.List import array_list as lt
-import App.logic as l
-
+            fila2 = [vuelo["id"], vuelo["flight"], str(vuelo["date"]) + " " + str(vuelo["sched_dep_time"]), vuelo["origin"], vuelo["dest"], vuelo["air_time"]]
+            
+            tabla1.append(fila1)
+            tabla2.append(fila2)
+    
+        print("Requerimiento 4 información: \n")
+        print(tabulate(tabla1, headers = headers, tablefmt = "grid"))
+    
+        print("Información de los vuelos con la menor duración:\n")
+        print(tabulate(tabla2, headers = headers2, tablefmt = "grid"))
+    
+    
+    
 def print_req_5(control):
     print("\n Requerimiento 5: Aerolíneas más puntuales por destino y rango de fechas\n")
 
@@ -370,7 +396,24 @@ def main():
             print_req_2(control, codigo_aero, rango)
 
         elif int(inputs) == 4:
-            print_req_4(control)
+            print("ingrese el rango de fechas\n")
+            ran = str(input("Desde:\n"))
+            go = str(input("Hasta:\n"))
+            
+            rango = ran,go
+            
+            print("Ahora, ingrese la franja horario programada de vuelos de salida\n")
+            
+            fran = str(input("Desde:\n"))
+            ja = str(input("Hasta:\n"))
+            
+            fran = datetime.strptime(fran, "%H:%M")
+            ja = datetime.strptime(ja, "%H:%M")
+            
+            franja = fran,ja
+            
+            n = int(input("Ingrese la cantidad de aerolíneas con mayor número de vuelos a mostrar:\n"))
+            print_req_4(control, rango, franja, n)
 
         elif int(inputs) == 5:
             print_req_5(control)

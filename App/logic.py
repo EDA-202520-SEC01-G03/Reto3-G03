@@ -25,6 +25,7 @@ def new_logic():
     catalog["vuelos"] = lt.new_list()
     catalog["vuelos_minutos_retraso"] = rbt.new_map() #req1
     catalog["vuelos_minutos_anticipo"] = rbt.new_map() #req2
+    catalog["vuelos_req_4"] = rbt.new_map() #req5
     catalog["index_req_5"] = None #req5
     catalog["index_req_6"] = None #req6
     
@@ -40,11 +41,13 @@ def load_data(catalog, filename):
     vuelos = load_vuelos(catalog, filename)
     vuelos_minutos_retraso = load_vuelos_retraso(catalog, filename)
     vuelos_minutos_anticipo = load_vuelos_anticipo(catalog, filename)
+    vuelos_req_4 = load_vuelos_req_4(catalog, filename)
     vuelos_index_req_5 = load_vuelos_req_5(catalog, filename)
     vuelos_index_req_6 = load_vuelos_req_6(catalog, filename)
     
-    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_index_req_5, vuelos_index_req_6
+    return vuelos, vuelos_minutos_retraso, vuelos_minutos_anticipo, vuelos_req_4, vuelos_index_req_5, vuelos_index_req_6
 
+#vuelos
 def load_vuelos(catalog, filename):
     vuelosfile = data_dir + "Challenge-3/" + filename
     input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
@@ -68,6 +71,43 @@ def sort_crit_fecha(vuelo1, vuelo2):
         is_sorted = True
     
     return is_sorted
+
+def cinco_primeros_ultimos(catalog):
+    
+    vuelos = catalog["vuelos"]
+    resultado1 = sll.new_list()
+    resultado2 = sll.new_list()
+    
+    longitud = lt.size(vuelos)
+    
+    for i in range(0, 5):
+        
+        vuelo = lt.get_element(vuelos, i)
+        vuelo = dic_vuelo(vuelo)
+        sll.add_last(resultado1, vuelo)
+    
+    for x in range(longitud - 5, longitud):
+        
+        vuelo = lt.get_element(vuelos, x)
+        vuelo = dic_vuelo(vuelo)
+        sll.add_last(resultado2, vuelo)
+        
+    return resultado1, resultado2
+
+
+def dic_vuelo(vuelo):
+    
+    res = {"date": vuelo["date"],
+           "dep_time": vuelo["dep_time"],
+           "arr_time": vuelo["arr_time"],
+           "code_name": str(vuelo["carrier"]) + "-" + str(vuelo["name"]),
+           "id": vuelo["id"],
+           "origin": vuelo["origin"],
+           "dest": vuelo["dest"],
+           "air_time": vuelo["air_time"],
+           "distance": vuelo["distance"]}
+    
+    return res
 
 #add_vuelo
 def add_vuelo(catalog, vuelo):
@@ -96,6 +136,7 @@ def size_load_vuelos(catalog):
     #vuelos en total cargados
     return lt.size(catalog["vuelos"])
 
+#vuelos retraso 
 def load_vuelos_retraso(catalog, filename):
     vuelosfile = "data/Challenge-3/" + filename
     input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
@@ -145,12 +186,12 @@ def add_vuelo_anticipo(catalog, vuelo):
         if minutos < 0:
             
             minutos = int(abs(minutos)) #minutos es int
-            llave = rbt.get(red_black, minutos) #map_linear_probing
+            llave = rbt.get(red_black, minutos) #map_linear_probing o None
             vuelo_dic = dic_anticipo(vuelo, minutos)
             
             if llave is None: #si no existe en el árbol
                 
-                mapa = mp.new_map(5, 0.5) #se crea la tabla
+                mapa = mp.new_map(15, 0.5) #se crea la tabla
                 lista = lt.new_list() #se crea una lista
                 
                 lt.add_last(lista, vuelo_dic)
@@ -158,7 +199,7 @@ def add_vuelo_anticipo(catalog, vuelo):
                 
                 rbt.put(red_black, minutos, mapa) #se pone el mapa y los minutos en el arbol
 
-                
+            
             else: #si existe en el árbol
                 
                 info = mp.contains(llave, str(vuelo["dest"])) #si ya existe la tabla, se busca el codigo del aeropuerto destino
@@ -166,15 +207,17 @@ def add_vuelo_anticipo(catalog, vuelo):
                 if info: #si existe, se añade a la  lista de el vuelo
                     
                     
-                    value = mp.get(llave, str(vuelo["dest"]))
-                    lt.add_last(value, vuelo_dic)
+                    lista = mp.get(llave, str(vuelo["dest"]))
+                    lt.add_last(lista, vuelo_dic)
+                    mp.put(llave, str(vuelo["dest"]), lista)
+                    rbt.put(red_black, minutos, llave)
                     
                 else: #si no existe, se mete al mapa el nuevo codigo del aeropuerto destino
                     
                     lista = lt.new_list() #se crea una lista
                     lt.add_last(lista, vuelo_dic)
                     mapa = mp.put(llave, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
-                
+                    rbt.put(red_black, minutos, llave)
     return catalog
 
 #funciones auxiliares
@@ -205,7 +248,41 @@ def dic_anticipo(vuelo, minutos):
     
     return vuel
 
+#vuelos requerimiento 4
 
+def load_vuelos_req_4(catalog, filename):
+    
+    vuelosfile = data_dir + "Challenge-3/" + filename
+    inputfile = csv.DictReader(open(vuelosfile, encoding="utf-8"))
+    red_black = rbt.new_map()
+    catalog["vuelos_req_4"] = red_black
+    for vuelo in inputfile:
+        add_vuelo_req_4(catalog, vuelo)
+    
+    
+    return catalog
+
+def add_vuelo_req_4(catalog, vuelo):
+    
+    red_black = catalog["vuelos_req_4"]
+    info0 = rbt.contains(red_black, str(vuelo["date"])) #si la fecha no existe en el arbol
+    
+    if info0 is False:
+        
+        lista = lt.new_list()
+        lt.add_last(lista, vuelo)
+        rbt.put(red_black, str(vuelo["date"]), lista)
+        
+    else:
+        lista = rbt.get(red_black, str(vuelo["date"]))
+        lt.add_last(lista, vuelo)
+        rbt.put(red_black, str(vuelo["date"]), lista)
+    
+    return catalog
+
+#funcion auxiliar
+            
+#vuelos requerimiento 5
 def load_vuelos_req_5(catalog, filename):
     vuelosfile = "data/Challenge-3/" + filename
     input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
@@ -256,6 +333,7 @@ def calcular_puntualidad(arr_time, sched_arr_time):
 
     return abs(minutos)
 
+#vuelos requerimiento 6
 def load_vuelos_req_6(catalog, filename):
     vuelosfile = "data/Challenge-3/" + filename
     input_file = csv.DictReader(open(vuelosfile, encoding="utf-8"))
@@ -297,42 +375,7 @@ def calcular_retraso_salida(dep_time, sched_dep_time):
 
     return minutos
 
-def cinco_primeros_ultimos(catalog):
-    
-    vuelos = catalog["vuelos"]
-    resultado1 = sll.new_list()
-    resultado2 = sll.new_list()
-    
-    longitud = lt.size(vuelos)
-    
-    for i in range(0, 5):
-        
-        vuelo = lt.get_element(vuelos, i)
-        vuelo = dic_vuelo(vuelo)
-        sll.add_last(resultado1, vuelo)
-    
-    for x in range(longitud - 5, longitud):
-        
-        vuelo = lt.get_element(vuelos, x)
-        vuelo = dic_vuelo(vuelo)
-        sll.add_last(resultado2, vuelo)
-        
-    return resultado1, resultado2
 
-def dic_vuelo(vuelo):
-    
-    res = {"date": vuelo["date"],
-           "dep_time": vuelo["dep_time"],
-           "arr_time": vuelo["arr_time"],
-           "code_name": str(vuelo["carrier"]) + "-" + str(vuelo["name"]),
-           "id": vuelo["id"],
-           "origin": vuelo["origin"],
-           "dest": vuelo["dest"],
-           "air_time": vuelo["air_time"],
-           "distance": vuelo["distance"]}
-    
-    return res
-    
 # Funciones de consulta sobre el catálogo
 
 
@@ -410,6 +453,7 @@ def ordenar_vuelos_fecha_retraso(lista_vuelos):
     return lt.merge_sort(lista_vuelos, sort_crit_retraso_fecha)
 
 
+#requerimiento 2
 def req_2(catalog, codigo_aero, rango): #rango es una tupla
     """
     Retorna el resultado del requerimiento 2
@@ -469,16 +513,85 @@ def sort_crit_anticipo(vuelo1, vuelo2):
             is_sorted = True
            
     return is_sorted
-        
-    
-def req_4(catalog):
+#requerimiento 4
+def req_4(catalog, rango, franja):#rango tupla, franja1 str, franja2 str, N int
     """
     Retorna el resultado del requerimiento 4
     """
     # TODO: Modificar el requerimiento 4
-    pass
+    inicio = get_time()
+    
+    red_black = catalog["vuelos_req_4"]
+    lista_fechas = rbt.values(red_black, str(rango[0]), str(rango[1])) #array_list
+    
+    
+    mapa = mp.new_map(12, 0.5)
+    
+    for x in range(lt.size(lista_fechas)): #o(n) n = fechas en el rango
+        
+        fechas = lt.get_element(lista_fechas, x) #se accede al array de cada fecha
+        
+        for y in range(lt.size(fechas)):
+            
+            vuelo = lt.get_element(fechas, y)
+    
+            vuelo_hour = datetime.strptime(str(vuelo["sched_dep_time"]), "%H:%M")
+            if franja[0] <= vuelo_hour <= franja[1]:
+                
+                info = mp.contains(mapa, str(vuelo["carrier"]))
+                
+                if info is False:
+                    
+                    diccionario =  {"carrier": str(vuelo["carrier"]), "numero_vuelos": 1, "duración": float(vuelo["air_time"]) ,
+                        "distancia": float(vuelo["distance"]) ,"menor_duracion": {"menor": float(vuelo["air_time"]), "info": vuelo}, "vuelos": lt.new_list()}
+                    lt.add_last(diccionario["vuelos"], vuelo)
+                    mp.put(mapa, str(vuelo["carrier"]), diccionario)
+                    
+                else:
+                    diccionario = mp.get(mapa, str(vuelo["carrier"]))
+                    diccionario["numero_vuelos"] +=1
+                    diccionario["duración"] += float(vuelo["air_time"])
+                    diccionario["distancia"] += float(vuelo["distance"])
+                    lt.add_last(diccionario["vuelos"], vuelo)
+                    
+                    if float(vuelo["air_time"]) < diccionario["menor_duracion"]["menor"]:
+                        
+                        diccionario["menor_duracion"] = {"menor": float(vuelo["air_time"]), "info": vuelo}
+                        
+                    elif float(vuelo["air_time"]) == diccionario["menor_duracion"]["menor"]:
+                        
+                        vuelo2 = diccionario["menor_duracion"]["info"]
+                        fecha1 = datetime.strptime(str(vuelo["date"]) + " " + str(vuelo["sched_dep_time"]), "%Y-%m-%d %H:%M")
+                        fecha2 = datetime.strptime(str(vuelo2["date"]) + " " + str(vuelo2["sched_dep_time"]), "%Y-%m-%d %H:%M")
+                        
+                        if fecha1 < fecha2:
+                            
+                            diccionario["menor_duracion"] = {"menor": float(vuelo["air_time"]), "info": vuelo}
+                        
+    aerolineas = mp.value_set(mapa) #array_list con diccionario de cada aerolinea
+    aerolineas = lt.merge_sort(aerolineas, sort_crit_req4)
+    
+    final = get_time()
+    tiempo = delta_time(inicio, final)
+    return tiempo, aerolineas
+        
+#funciones auxiliares
 
-
+def sort_crit_req4(dic1, dic2):
+    
+    is_sorted = False
+    if int(dic1["numero_vuelos"]) > int(dic2["numero_vuelos"]):
+        is_sorted = True
+        
+    if int(dic1["numero_vuelos"]) == int(dic2["numero_vuelos"]):
+        
+        if dic1["carrier"].upper() < dic2["carrier"].upper():
+            is_sorted = True
+    
+    return is_sorted
+    
+    
+#requerimiento 5
 def req_5(catalog, destino, rango_fechas, n):
     start = get_time()
     index = catalog["index_req_5"]
