@@ -8,6 +8,7 @@ from DataStructures.List import single_linked_list as sll
 from DataStructures.Tree import red_black_tree as rbt
 from DataStructures.Tree import binary_search_tree as bst
 from DataStructures.Map import map_linear_probing as mp
+from DataStructures.Map import map_separate_chaining as sc
 from DataStructures.Priority_queue import priority_queue as pq
 
 csv.field_size_limit(2147483647)
@@ -195,7 +196,7 @@ def add_vuelo_anticipo(catalog, vuelo):
                 lista = lt.new_list() #se crea una lista
                 
                 lt.add_last(lista, vuelo_dic)
-                mapa = mp.put(mapa, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
+                mp.put(mapa, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
                 
                 rbt.put(red_black, minutos, mapa) #se pone el mapa y los minutos en el arbol
 
@@ -216,7 +217,7 @@ def add_vuelo_anticipo(catalog, vuelo):
                     
                     lista = lt.new_list() #se crea una lista
                     lt.add_last(lista, vuelo_dic)
-                    mapa = mp.put(llave, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
+                    mp.put(llave, str(vuelo["dest"]), lista) #se pone en el mapa la lista (codigo llave)
                     rbt.put(red_black, minutos, llave)
     return catalog
 
@@ -265,18 +266,19 @@ def load_vuelos_req_4(catalog, filename):
 def add_vuelo_req_4(catalog, vuelo):
     
     red_black = catalog["vuelos_req_4"]
-    info0 = rbt.contains(red_black, str(vuelo["date"])) #si la fecha no existe en el arbol
+    date = datetime.strptime(str(vuelo["date"]), "%Y-%m-%d")
+    info0 = rbt.contains(red_black, date) #si la fecha no existe en el arbol
     
     if info0 is False:
         
         lista = lt.new_list()
         lt.add_last(lista, vuelo)
-        rbt.put(red_black, str(vuelo["date"]), lista)
+        rbt.put(red_black, date, lista)
         
     else:
-        lista = rbt.get(red_black, str(vuelo["date"]))
+        lista = rbt.get(red_black, date)
         lt.add_last(lista, vuelo)
-        rbt.put(red_black, str(vuelo["date"]), lista)
+        rbt.put(red_black, date, lista)
     
     return catalog
 
@@ -522,10 +524,17 @@ def req_4(catalog, rango, franja):#rango tupla, franja1 str, franja2 str, N int
     inicio = get_time()
     
     red_black = catalog["vuelos_req_4"]
-    lista_fechas = rbt.values(red_black, str(rango[0]), str(rango[1])) #array_list
+    
+    if red_black is None:
+        final = get_time()
+        tiempo = delta_time(inicio, final)
+        return tiempo, None
+    
+    lista_fechas = rbt.values(red_black, rango[0], rango[1]) #array_list
     
     
-    mapa = mp.new_map(12, 0.5)
+    
+    mapa = sc.new_map(15, 4)
     
     for x in range(lt.size(lista_fechas)): #o(n) n = fechas en el rango
         
@@ -536,45 +545,57 @@ def req_4(catalog, rango, franja):#rango tupla, franja1 str, franja2 str, N int
             vuelo = lt.get_element(fechas, y)
     
             vuelo_hour = datetime.strptime(str(vuelo["sched_dep_time"]), "%H:%M")
-            if franja[0] <= vuelo_hour <= franja[1]:
-                
-                info = mp.contains(mapa, str(vuelo["carrier"]))
-                
-                if info is False:
+            franja_bool = False
+            
+            if franja[0] <= franja[1]:
+                if franja[0] <= vuelo_hour <= franja[1]:
                     
+                    franja_bool = True
+                
+            else:
+                if vuelo_hour >= franja[0] or vuelo_hour <= franja[1]:
+                
+                    franja_bool = True
+                
+            if franja_bool is True:
+                
+                info = sc.contains(mapa, str(vuelo["carrier"]))
+                    
+                if info is False:
+                        
                     diccionario =  {"carrier": str(vuelo["carrier"]), "numero_vuelos": 1, "duración": float(vuelo["air_time"]) ,
                         "distancia": float(vuelo["distance"]) ,"menor_duracion": {"menor": float(vuelo["air_time"]), "info": vuelo}, "vuelos": lt.new_list()}
                     lt.add_last(diccionario["vuelos"], vuelo)
-                    mp.put(mapa, str(vuelo["carrier"]), diccionario)
-                    
+                    sc.put(mapa, str(vuelo["carrier"]), diccionario)
+                        
                 else:
-                    diccionario = mp.get(mapa, str(vuelo["carrier"]))
+                    diccionario = sc.get(mapa, str(vuelo["carrier"]))
                     diccionario["numero_vuelos"] +=1
                     diccionario["duración"] += float(vuelo["air_time"])
                     diccionario["distancia"] += float(vuelo["distance"])
                     lt.add_last(diccionario["vuelos"], vuelo)
-                    
+                        
                     if float(vuelo["air_time"]) < diccionario["menor_duracion"]["menor"]:
-                        
+                            
                         diccionario["menor_duracion"] = {"menor": float(vuelo["air_time"]), "info": vuelo}
-                        
+                            
                     elif float(vuelo["air_time"]) == diccionario["menor_duracion"]["menor"]:
-                        
+                            
                         vuelo2 = diccionario["menor_duracion"]["info"]
                         fecha1 = datetime.strptime(str(vuelo["date"]) + " " + str(vuelo["sched_dep_time"]), "%Y-%m-%d %H:%M")
                         fecha2 = datetime.strptime(str(vuelo2["date"]) + " " + str(vuelo2["sched_dep_time"]), "%Y-%m-%d %H:%M")
-                        
-                        if fecha1 < fecha2:
                             
+                        if fecha1 < fecha2:
+                                
                             diccionario["menor_duracion"] = {"menor": float(vuelo["air_time"]), "info": vuelo}
-                        
-    aerolineas = mp.value_set(mapa) #array_list con diccionario de cada aerolinea
+                            
+    aerolineas = sc.value_set(mapa) #array_list con diccionario de cada aerolinea
     aerolineas = lt.merge_sort(aerolineas, sort_crit_req4)
-    
+        
     final = get_time()
     tiempo = delta_time(inicio, final)
     return tiempo, aerolineas
-        
+            
 #funciones auxiliares
 
 def sort_crit_req4(dic1, dic2):
@@ -582,8 +603,8 @@ def sort_crit_req4(dic1, dic2):
     is_sorted = False
     if int(dic1["numero_vuelos"]) > int(dic2["numero_vuelos"]):
         is_sorted = True
-        
-    if int(dic1["numero_vuelos"]) == int(dic2["numero_vuelos"]):
+    
+    elif int(dic1["numero_vuelos"]) == int(dic2["numero_vuelos"]):
         
         if dic1["carrier"].upper() < dic2["carrier"].upper():
             is_sorted = True

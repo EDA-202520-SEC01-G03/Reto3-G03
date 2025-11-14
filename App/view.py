@@ -35,11 +35,7 @@ def load_data(control):
 def print_load_data(control):
     inicio = l.get_time()
     resultado1, resultado2 = l.cinco_primeros_ultimos(control)
-    final = l.get_time()
     
-    tiempo = l.delta_time(inicio, final)
-    
-    print("Tiempo de carga: " + str(tiempo))
     tabla1 = []
     for i in range(sll.size(resultado1)):
         vuelo = sll.get_element(resultado1, i)
@@ -91,7 +87,10 @@ def print_load_data(control):
     print("Últimos cinco vuelos: \n")
     print(tabulate(tabla2, headers = headers, tablefmt = "grid"))
         
-
+    final = l.get_time()
+    tiempo = l.delta_time(inicio, final)
+    print("Tiempo de carga: " + str(tiempo))
+    
 def print_data(control, id):
     """
         Función que imprime un dato dado su ID
@@ -399,6 +398,9 @@ def main():
             print("ingrese el rango de fechas\n")
             ran = str(input("Desde:\n"))
             go = str(input("Hasta:\n"))
+            
+            ran = datetime.strptime(ran, "%Y-%m-%d")
+            go = datetime.strptime(go, "%Y-%m-%d")
             
             rango = ran,go
             
